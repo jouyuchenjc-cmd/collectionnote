@@ -579,12 +579,15 @@ async function sendMessage() {
     }
   };
 
+  console.log('Body:', JSON.stringify(body, null, 2));
   try {
     const resp = await fetch(`${API}/v1/pages`, {
       method: 'POST',
       headers: {'Content-Type':'application/json','Notion-Version':'2022-06-28'},
       body: JSON.stringify(body)
     });
+    const respText = await resp.text();
+    console.log('Notion response:', resp.status, respText);
     if (resp.ok) {
       showToast('意念已傳送 ✦');
       closeModal();
