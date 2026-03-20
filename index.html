@@ -280,9 +280,97 @@
     border-radius: 14px;
     padding: 13px 16px;
     transition: background 0.18s;
+    cursor: pointer;
   }
 
   .entry-card:hover { background: rgba(255,255,255,0.78); }
+
+  /* 編輯 modal */
+  .edit-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(58,51,40,0.42);
+    backdrop-filter: blur(8px);
+    z-index: 910;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.28s ease;
+  }
+
+  .edit-modal-overlay.open {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .edit-modal-box {
+    background: var(--bg);
+    width: 100%;
+    max-width: 440px;
+    border-radius: 24px 24px 0 0;
+    padding: 22px 22px 44px;
+    transform: translateY(100%);
+    transition: transform 0.36s cubic-bezier(0.32,0.72,0,1);
+  }
+
+  .edit-modal-overlay.open .edit-modal-box {
+    transform: translateY(0);
+  }
+
+  .edit-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  .edit-modal-title {
+    font-size: 13px;
+    color: var(--text-sub);
+    letter-spacing: 0.08em;
+  }
+
+  .edit-save-btn {
+    padding: 6px 16px;
+    border: none;
+    border-radius: 20px;
+    background: #4d5a63;
+    color: #fff6e0;
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: opacity 0.18s;
+  }
+
+  .edit-save-btn:hover { opacity: 0.8; }
+  .edit-save-btn.loading { opacity: 0.5; pointer-events: none; }
+
+  .edit-delete-btn {
+    padding: 6px 16px;
+    border: 1px solid rgba(200,207,213,0.6);
+    border-radius: 20px;
+    background: transparent;
+    color: var(--text-sub);
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: all 0.18s;
+  }
+
+  .edit-delete-btn:hover {
+    border-color: #e5b5b5;
+    color: #c05050;
+  }
+
+  .edit-btn-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
 
   .entry-top {
     display: flex;
@@ -316,10 +404,8 @@
     color: var(--text);
     line-height: 1.7;
     letter-spacing: 0.03em;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+    white-space: pre-wrap;
+    word-break: break-word;
   }
 
   .empty-state {
@@ -568,6 +654,27 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- EDIT MODAL -->
+<div class="edit-modal-overlay" id="editModalOverlay">
+  <div class="edit-modal-box">
+    <div class="modal-handle"></div>
+    <div class="edit-modal-header">
+      <span class="edit-modal-title" id="editModalDate"></span>
+      <button class="edit-save-btn" id="editSaveBtn" onclick="saveEdit()">儲存</button>
+    </div>
+    <div class="mood-row">
+      <button class="mood-chip peace"   data-mood="平靜" onclick="selectEditMood(this)">平靜</button>
+      <button class="mood-chip thanks"  data-mood="感謝" onclick="selectEditMood(this)">感謝</button>
+      <button class="mood-chip pour"    data-mood="傾訴" onclick="selectEditMood(this)">傾訴</button>
+      <button class="mood-chip release" data-mood="釋放" onclick="selectEditMood(this)">釋放</button>
+    </div>
+    <textarea id="editMessageInput" placeholder="有什麼話，都可以在這裡說…"></textarea>
+    <div class="edit-btn-row">
+      <button class="edit-delete-btn" onclick="closeEditModal()">取消</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // !! Worker 路由是 /notion/v1/... !!
 const API    = 'https://dry-band-d1ba.jouyu-chen-jc.workers.dev';
@@ -726,7 +833,8 @@ function renderEntries(results) {
     const mood    = props.Mood?.select?.name || '';
     const mc      = moodClass[mood] || '';
     const hidden  = i >= SHOW_LIMIT ? ' hidden' : '';
-    return `<div class="entry-card${hidden}">
+    const msgSafe = msg.replace(/'/g, "\'");
+    return `<div class="entry-card${hidden}" onclick="openEditModal('${page.id}','${dateVal}','${msgSafe}','${mood}')">
       <div class="entry-top">
         <span class="entry-date">${dateVal}</span>
         ${mood?`<span class="entry-mood ${mc}">${mood}</span>`:''}
@@ -790,6 +898,76 @@ function toggleCalSection() {
   const toggle = document.getElementById('sectionToggle');
   const isCollapsed = body.classList.toggle('collapsed');
   toggle.style.transform = isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
+}
+
+// ── EDIT MODAL
+let editPageId = '';
+let editMood = '';
+
+const editOverlay = document.getElementById('editModalOverlay');
+
+function openEditModal(pageId, dateVal, msg, mood) {
+  editPageId = pageId;
+  editMood = mood;
+  document.getElementById('editModalDate').textContent = dateVal;
+  document.getElementById('editMessageInput').value = msg;
+
+  // 選中對應的 mood
+  editOverlay.querySelectorAll('.mood-chip').forEach(c => {
+    c.classList.toggle('active', c.dataset.mood === mood);
+  });
+
+  editOverlay.classList.add('open');
+}
+
+function closeEditModal() {
+  editOverlay.classList.remove('open');
+}
+
+editOverlay.addEventListener('click', e => {
+  if (e.target === editOverlay) closeEditModal();
+});
+
+function selectEditMood(el) {
+  editOverlay.querySelectorAll('.mood-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  editMood = el.dataset.mood;
+}
+
+async function saveEdit() {
+  const msg = document.getElementById('editMessageInput').value.trim();
+  if (!msg) { showToast('請先寫幾個字'); return; }
+
+  const btn = document.getElementById('editSaveBtn');
+  btn.textContent = '儲存中…';
+  btn.classList.add('loading');
+
+  const body = {
+    properties: {
+      Message: { rich_text: [{ text: { content: msg } }] },
+      ...(editMood ? { Mood: { select: { name: editMood } } } : { Mood: { select: null } })
+    }
+  };
+
+  try {
+    const resp = await fetch(`${API}/v1/pages/${editPageId}`, {
+      method: 'PATCH',
+      headers: {'Content-Type':'application/json','Notion-Version':'2022-06-28'},
+      body: JSON.stringify(body)
+    });
+    if (resp.ok) {
+      showToast('已更新 ✦');
+      closeEditModal();
+      loadEntries();
+    } else {
+      showToast(`更新失敗（HTTP ${resp.status}）`);
+    }
+  } catch(e) {
+    showToast('無法連線');
+  }
+
+  btn.textContent = '儲存';
+  btn.classList.remove('loading');
 }
 </script>
 </body>
