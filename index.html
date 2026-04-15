@@ -745,7 +745,7 @@ self.addEventListener('fetch', e => {
       <span class="dday-unit">天</span>
     </div>
     <div class="dday-divider"></div>
-    <div class="dday-date">22. May. 2026</div>
+    <div class="dday-date">15. May. 2026</div>
   </div>
 
   <!-- ILLUSTRATION -->
@@ -818,7 +818,7 @@ self.addEventListener('fetch', e => {
 // !! Worker 路由是 /notion/v1/... !!
 const API    = 'https://dry-band-d1ba.jouyu-chen-jc.workers.dev';
 const DB_ID  = '32485e19-d1c6-8015-b232-cb354559a78d';
-const TARGET = new Date('2026-05-22T00:00:00');
+const TARGET = new Date('2026-05-15T00:00:00');
 
 const moodClass = {'平靜':'peace','感謝':'thanks','傾訴':'pour','釋放':'release'};
 let currentMood = '';
@@ -832,7 +832,7 @@ let viewMonth = new Date().getMonth() + 1;
     String(now.getMonth()+1).padStart(2,'0') + '-' +
     String(now.getDate()).padStart(2,'0');
   const today = new Date(todayStr + 'T00:00:00');
-  const target = new Date('2026-05-22T00:00:00');
+  const target = new Date('2026-05-15T00:00:00');
   const diff = Math.ceil((target - today) / 86400000);
   document.getElementById('ddayNum').textContent = diff > 0 ? diff : 0;
 })();
