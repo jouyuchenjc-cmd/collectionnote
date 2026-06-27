@@ -676,11 +676,52 @@ let viewYear  = new Date().getFullYear();
 let viewMonth = new Date().getMonth() + 1;
 
 // D-DAY
+const DDAY_STORAGE_KEY = 'ddayState';
+
+function saveDdayState() {
+  const items = document.querySelectorAll('#ddayHistory .history-item');
+  const history = Array.from(items).map(item => ({
+    date: item.querySelector('.h-date').textContent.trim().replace(/\.\s*/g, '-').replace(/-$/, ''),
+    current: item.querySelector('.h-idx').classList.contains('current')
+  }));
+  localStorage.setItem(DDAY_STORAGE_KEY, JSON.stringify({
+    target: `${TARGET.getFullYear()}-${String(TARGET.getMonth()+1).padStart(2,'0')}-${String(TARGET.getDate()).padStart(2,'0')}`,
+    history
+  }));
+}
+
+function loadDdayState() {
+  const raw = localStorage.getItem(DDAY_STORAGE_KEY);
+  if (!raw) return;
+  let state;
+  try { state = JSON.parse(raw); } catch (e) { return; }
+  if (!state || !state.target) return;
+
+  TARGET = new Date(state.target + 'T00:00:00');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  document.getElementById('ddayDateLabel').textContent =
+    `${String(TARGET.getDate()).padStart(2,'0')}. ${months[TARGET.getMonth()]}. ${TARGET.getFullYear()}`;
+
+  if (Array.isArray(state.history) && state.history.length) {
+    const list = document.querySelector('#ddayHistory .history-list');
+    list.innerHTML = state.history.map((h, i) => {
+      const ymd = h.date.split('-');
+      const dateStr = `${ymd[0]}. ${String(ymd[1]).padStart(2,'0')}. ${String(ymd[2]).padStart(2,'0')}`;
+      return `<li class="history-item">
+        <span class="h-idx${h.current ? ' current' : ''}">${i+1}</span>
+        <span class="h-date">${dateStr}</span>
+        <button class="h-del" onclick="deleteHistoryItem(this)" title="刪除">✕</button>
+      </li>`;
+    }).join('');
+  }
+}
+
 function updateDday() {
   const today = new Date(); today.setHours(0,0,0,0);
   const diff  = Math.ceil((TARGET - today) / 86400000);
   document.getElementById('ddayNum').textContent = diff > 0 ? diff : 0;
 }
+loadDdayState();
 updateDday();
 
 document.getElementById('ddayDateLabel').addEventListener('click', () => {
@@ -718,6 +759,8 @@ function applyNewTarget() {
   // 展開紀錄讓使用者看到
   document.getElementById('ddayHistory').classList.add('open');
   document.getElementById('historyToggleRow').classList.add('open');
+
+  saveDdayState();
 }
 
 function deleteHistoryItem(btn) {
@@ -730,7 +773,19 @@ function deleteHistoryItem(btn) {
   // 最後一筆標成 current
   const items = list.querySelectorAll('.history-item');
   list.querySelectorAll('.h-idx').forEach(el => el.classList.remove('current'));
-  if (items.length > 0) items[items.length - 1].querySelector('.h-idx').classList.add('current');
+  if (items.length > 0) {
+    const lastItem = items[items.length - 1];
+    lastItem.querySelector('.h-idx').classList.add('current');
+
+    const ymd = lastItem.querySelector('.h-date').textContent.trim().split('. ');
+    TARGET = new Date(`${ymd[0]}-${ymd[1]}-${ymd[2]}T00:00:00`);
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    document.getElementById('ddayDateLabel').textContent =
+      `${String(TARGET.getDate()).padStart(2,'0')}. ${months[TARGET.getMonth()]}. ${TARGET.getFullYear()}`;
+    updateDday();
+  }
+
+  saveDdayState();
 }
 
 function toggleHistory() {
